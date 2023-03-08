@@ -95,6 +95,12 @@ func (b *backend) pathTokenCreatePerform(ctx context.Context, req *logical.Reque
 		ttl = maxTTL
 	}
 
+	// TODO: add usernameTemplate stuff
+	username := role.Username
+	if len(username) == 0 {
+		username = "lets-do-a-template-user"
+	}
+
 	resp, err := b.createToken(*config, *role)
 	if err != nil {
 		return nil, err
@@ -105,10 +111,12 @@ func (b *backend) pathTokenCreatePerform(ctx context.Context, req *logical.Reque
 		"role":         roleName,
 		"scope":        resp.Scope,
 		"token_id":     resp.TokenId,
+		"username":     username,
 	}, map[string]interface{}{
 		"role":         roleName,
 		"access_token": resp.AccessToken,
 		"token_id":     resp.TokenId,
+		"username":     username,
 	})
 
 	response.Secret.TTL = ttl

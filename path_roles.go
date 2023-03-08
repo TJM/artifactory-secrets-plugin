@@ -35,8 +35,11 @@ func (b *backend) pathRoles() *framework.Path {
 			},
 			"username": {
 				Type:        framework.TypeString,
-				Required:    true,
-				Description: `Required. The username for which the access token is created. If the user does not exist, Artifactory will create a transient user. Note that non-admininstrative access tokens can only create tokens for themselves.`,
+				Description: `Optional. The static username for which the access token is created. This will override the dynamic user_template. If the user does not exist, Artifactory will create a transient user. Note that non-admininstrative access tokens can only create tokens for themselves.`,
+			},
+			"user_template": {
+				Type:        framework.TypeString,
+				Description: `Optional. Defaults to 'v-RoleName-Random(8)' The user template for which the access token is created. NOTE: If username is also specififed it will override this.`,
 			},
 			"scope": {
 				Type:        framework.TypeString,
@@ -79,12 +82,13 @@ func (b *backend) pathRoles() *framework.Path {
 }
 
 type artifactoryRole struct {
-	GrantType  string        `json:"grant_type"`
-	Username   string        `json:"username,omitempty"`
-	Scope      string        `json:"scope"`
-	Audience   string        `json:"audience,omitempty"`
-	DefaultTTL time.Duration `json:"default_ttl,omitempty"`
-	MaxTTL     time.Duration `json:"max_ttl,omitempty"`
+	GrantType    string        `json:"grant_type"`
+	Username     string        `json:"username,omitempty"`
+	UserTemplate string        `json:"user_template,omitempty"`
+	Scope        string        `json:"scope"`
+	Audience     string        `json:"audience,omitempty"`
+	DefaultTTL   time.Duration `json:"default_ttl,omitempty"`
+	MaxTTL       time.Duration `json:"max_ttl,omitempty"`
 }
 
 func (b *backend) pathRoleList(ctx context.Context, req *logical.Request, _ *framework.FieldData) (*logical.Response, error) {
@@ -143,6 +147,12 @@ func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request, data 
 		role.Username = value.(string)
 	}
 
+	if value, ok := data.GetOk("user_template"); ok {
+		role.UserTemplate = value.(string)
+	} else {
+		role.UserTemplate = `{{ printf "v-%s-%s", (roleName), (random 8)}}`
+	}
+
 	if value, ok := data.GetOk("scope"); ok {
 		role.Scope = value.(string)
 	}
@@ -162,10 +172,6 @@ func (b *backend) pathRoleWrite(ctx context.Context, req *logical.Request, data 
 
 	if role.Scope == "" {
 		return logical.ErrorResponse("missing scope"), nil
-	}
-
-	if role.Username == "" {
-		return logical.ErrorResponse("missing username"), nil
 	}
 
 	entry, err := logical.StorageEntryJSON("roles/"+roleName, role)
@@ -225,13 +231,14 @@ func (b *backend) Role(ctx context.Context, storage logical.Storage, roleName st
 
 func (b *backend) roleToMap(roleName string, role artifactoryRole) map[string]interface{} {
 	return map[string]interface{}{
-		"role":        roleName,
-		"grant_type":  role.GrantType,
-		"username":    role.Username,
-		"scope":       role.Scope,
-		"audience":    role.Audience,
-		"default_ttl": role.DefaultTTL.Seconds(),
-		"max_ttl":     role.MaxTTL.Seconds(),
+		"role":          roleName,
+		"grant_type":    role.GrantType,
+		"username":      role.Username,
+		"user_template": role.UserTemplate,
+		"scope":         role.Scope,
+		"audience":      role.Audience,
+		"default_ttl":   role.DefaultTTL.Seconds(),
+		"max_ttl":       role.MaxTTL.Seconds(),
 	}
 }
 

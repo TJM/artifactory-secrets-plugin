@@ -44,7 +44,7 @@ fmt:
 setup: disable enable
 	vault write artifactory/config/admin url=$(ARTIFACTORY_URL) access_token=$(JFROG_ACCESS_TOKEN)
 	vault read artifactory/config/admin
-	vault write artifactory/roles/test scope="$(ARTIFACTORY_SCOPE)" username="test-user" max_ttl=3h default_ttl=2h
+	vault write artifactory/roles/test scope="$(ARTIFACTORY_SCOPE)" max_ttl=3h default_ttl=2h
 	vault read artifactory/roles/test
 
 artifactory: $(ARTIFACTORY_ENV)
